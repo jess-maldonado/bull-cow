@@ -17,10 +17,13 @@ public:
 	void SetupGame();
 	void EndGame(const FString &Input);
 	void CheckInput(const FString &Input);
+	bool IsIsogram(const FString &Input) const;
+	TArray<FString> GetValidWords(TArray<FString> WordList) const;
 
 	// Your declarations go below!
 private:
 	FString HiddenWord;
 	int32 Lives;
 	bool bGameOver;
+	TArray<FString> Words;
 };
