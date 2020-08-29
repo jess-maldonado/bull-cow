@@ -8,18 +8,16 @@ void UBullCowCartridge::BeginPlay() // When the game starts
     Super::BeginPlay();
 
     const FString WordListPath = FPaths::ProjectContentDir() / TEXT("WordList/HiddenWordList.txt");
-    FFileHelper::LoadFileToStringArray(Words, *WordListPath);
+    FFileHelper::LoadFileToStringArrayWithPredicate(Isograms, *WordListPath, [](const FString &Word) {
+        return Word.Len() > 4 && Word.Len() < 8 && IsIsogram(Word);
+    });
 
     PrintLine(TEXT("Welcome to the Bull Cow game!"));
-
-    TArray<FString> ValidWords = GetValidWords(Words);
-    PrintLine(TEXT("Number of valid words is: %i"), ValidWords.Num());
     SetupGame();
 }
 
 void UBullCowCartridge::OnInput(const FString &Input) // When the player hits enter
 {
-    ClearScreen();
 
     if (bGameOver)
     {
@@ -34,12 +32,10 @@ void UBullCowCartridge::OnInput(const FString &Input) // When the player hits en
 
 void UBullCowCartridge::SetupGame()
 {
-    HiddenWord = TEXT("cakes");
+    HiddenWord = Isograms[FMath::RandRange(0, Isograms.Num() - 1)];
     Lives = HiddenWord.Len() + 1;
     bGameOver = false;
-    PrintLine((TEXT("Guess the %i letter isogram to continue")), HiddenWord.Len()); // Remove hardcoded
-
-    const TCHAR HW[] = TEXT("cakes");
+    PrintLine((TEXT("Guess the %i letter isogram to continue")), HiddenWord.Len());
 }
 
 void UBullCowCartridge::EndGame(const FString &Input)
@@ -63,13 +59,15 @@ void UBullCowCartridge::CheckInput(const FString &Input)
     };
     if (!IsIsogram(Input))
     {
-        PrintLine(TEXT("Guess must be an isogram, which \nmeans it has no repeating letters. \nPlease try again"));
+        PrintLine(TEXT("Guess must have no repeating letters. \nPlease try again"));
         return;
     }
     if (Lives > 1)
     {
         --Lives;
-        PrintLine(TEXT("Wrong word, please try again. \nYou have %i lives left."), Lives);
+        FBullCowCount Count = GetBullCows(Input);
+
+        PrintLine(TEXT("You Have %i bulls and %i cows. \nYou have %i lives left.\nPlease guess again."), Count.Bulls, Count.Cows, Lives);
         return;
     };
     PrintLine(TEXT("You Lose."));
@@ -77,11 +75,11 @@ void UBullCowCartridge::CheckInput(const FString &Input)
     EndGame(Input);
 }
 
-bool UBullCowCartridge::IsIsogram(const FString &Input) const
+bool UBullCowCartridge::IsIsogram(const FString &Input)
 {
     for (int i = 0; i < Input.Len(); i++)
     {
-        for (int j = i + 1; j < Input.Len() - j; j++)
+        for (int j = i + 1; j < Input.Len(); j++)
         {
             if (Input[i] == Input[j])
             {
@@ -92,7 +90,7 @@ bool UBullCowCartridge::IsIsogram(const FString &Input) const
     return true;
 }
 
-TArray<FString> UBullCowCartridge::GetValidWords(TArray<FString> WordList) const
+TArray<FString> UBullCowCartridge::GetValidWords(const TArray<FString> &WordList) const
 {
     TArray<FString> ValidWords;
 
@@ -102,4 +100,27 @@ TArray<FString> UBullCowCartridge::GetValidWords(TArray<FString> WordList) const
             ValidWords.Emplace(Word);
     }
     return ValidWords;
+}
+
+FBullCowCount UBullCowCartridge::GetBullCows(const FString &Input) const
+{
+    FBullCowCount Count;
+
+    for (int32 i = 0; i < Input.Len(); i++)
+    {
+        if (Input[i] == HiddenWord[i])
+        {
+            ++Count.Bulls;
+            continue;
+        }
+        for (int32 j = 0; j < HiddenWord.Len(); j++)
+        {
+            if (Input[i] == HiddenWord[j])
+            {
+                ++Count.Cows;
+                break;
+            }
+        }
+    }
+    return Count;
 }
